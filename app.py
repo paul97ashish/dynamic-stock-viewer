@@ -175,8 +175,13 @@ with st.sidebar:
 if ticker:
     try:
         with st.spinner(f"Fetching data for {ticker}..."):
+            # Set up session caching for Yahoo Finance to bypass rate limits
+            import requests_cache
+            session = requests_cache.CachedSession('yfinance.cache')
+            session.headers['User-agent'] = 'my-program/1.0'
+            
             # Initialize ticker object
-            stock = yf.Ticker(ticker)
+            stock = yf.Ticker(ticker, session=session)
             
             # Get historical data
             hist_data = stock.history(start=start_date_input, end=end_date_input)
@@ -207,7 +212,7 @@ if ticker:
                     
                     for comp_tick in compare_tickers:
                         try:
-                            c_data = yf.Ticker(comp_tick).history(start=start_date_input, end=end_date_input)
+                            c_data = yf.Ticker(comp_tick, session=session).history(start=start_date_input, end=end_date_input)
                             if not c_data.empty:
                                 chart_df[comp_tick] = (c_data['Close'] / c_data['Close'].iloc[0] - 1) * 100
                         except Exception:
