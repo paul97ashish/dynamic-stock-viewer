@@ -172,23 +172,29 @@ with st.sidebar:
     end_date_input = st.session_state["end_date"]
 
 # Main content area
+
+# Streamlit-native caching for history to prevent rate limiting
+@st.cache_data(ttl=timedelta(minutes=15))
+def get_cached_history(ticker_sym, start, end):
+    return yf.Ticker(ticker_sym).history(start=start, end=end)
+    
+@st.cache_data(ttl=timedelta(minutes=15))
+def get_cached_info(ticker_sym):
+    return yf.Ticker(ticker_sym).info
+    
+@st.cache_data(ttl=timedelta(minutes=15))
+def get_cached_news(ticker_sym):
+    return yf.Ticker(ticker_sym).news
+
 if ticker:
     try:
         with st.spinner(f"Fetching data for {ticker}..."):
-            # Set up session caching for Yahoo Finance to bypass rate limits
-            import requests_cache
-            session = requests_cache.CachedSession('yfinance.cache')
-            session.headers['User-agent'] = 'my-program/1.0'
-            
-            # Initialize ticker object
-            stock = yf.Ticker(ticker, session=session)
-            
-            # Get historical data
-            hist_data = stock.history(start=start_date_input, end=end_date_input)
+            # Get historical data via Streamlit Cache
+            hist_data = get_cached_history(ticker, start_date_input, end_date_input)
             
             if not hist_data.empty:
-                # Get company info if available
-                info = stock.info
+                # Get company info if available (Cached)
+                info = get_cached_info(ticker)
                 company_name = info.get('longName', ticker)
                 current_price = info.get('currentPrice', 'N/A')
                 currency = info.get('currency', 'USD')
@@ -212,7 +218,8 @@ if ticker:
                     
                     for comp_tick in compare_tickers:
                         try:
-                            c_data = yf.Ticker(comp_tick, session=session).history(start=start_date_input, end=end_date_input)
+                            # Use cached history pull for comparisons too
+                            c_data = get_cached_history(comp_tick, start_date_input, end_date_input)
                             if not c_data.empty:
                                 chart_df[comp_tick] = (c_data['Close'] / c_data['Close'].iloc[0] - 1) * 100
                         except Exception:
@@ -226,8 +233,8 @@ if ticker:
                 
                 # 1. Technical Indicator: Moving Average Crossover (20-day vs 50-day)
                 try:
-                    # Get last 60 days to ensure we have enough data for 50-day SMA
-                    pred_data = stock.history(period="3mo")
+                    # Get last 90 days to ensure we have enough data for 50-day SMA securely from cache
+                    pred_data = get_cached_history(ticker, datetime.today().date() - timedelta(days=90), datetime.today().date())
                     if len(pred_data) >= 50:
                         sma_20 = pred_data['Close'].rolling(window=20).mean().iloc[-1]
                         sma_50 = pred_data['Close'].rolling(window=50).mean().iloc[-1]
@@ -253,7 +260,7 @@ if ticker:
                 agg_sentiment = 0.0
                 news_count = 0
                 try:
-                    news_items = stock.news
+                    news_items = get_cached_news(ticker)
                     if news_items:
                         for item in news_items[:10]:
                             article = item.get('content', item)
@@ -314,7 +321,7 @@ if ticker:
                 
                 # --- RECENT NEWS SECTION ---
                 try:
-                    news = stock.news
+                    news = get_cached_news(ticker)
                     if news:
                         st.markdown("---")
                         st.markdown("### 📰 Recent News")
