@@ -217,10 +217,22 @@ try:
                         st.metric(label="Current Price", value=f"{current_price} {currency}")
                     
                     # Display Chart
+                    import altair as alt
                     if not compare_tickers:
                         st.markdown(f"### Closing Price History ({interval.upper()} Interval)")
-                        # Streamlit's native line chart is clean and responsive
-                        st.line_chart(hist_data['Close'], use_container_width=True)
+                        
+                        # Prepare data for Altair
+                        df_chart = hist_data.reset_index()
+                        # yfinance index is named 'Date' or 'Datetime' based on interval
+                        time_col = 'Datetime' if 'Datetime' in df_chart.columns else 'Date'
+                        
+                        chart = alt.Chart(df_chart).mark_line(color="#58a6ff").encode(
+                            x=alt.X(f'{time_col}:T', title=""),
+                            y=alt.Y('Close:Q', title="Price", scale=alt.Scale(zero=False)),
+                            tooltip=[alt.Tooltip(f'{time_col}:T', format="%Y-%m-%d %H:%M"), alt.Tooltip('Close:Q', format=".2f")]
+                        ).interactive()
+                        
+                        st.altair_chart(chart, use_container_width=True)
                     else:
                         st.markdown(f"### Comparison Price History (% Change, {interval.upper()} Interval)")
                         # Build a combined dataframe normalized to standard percentage return
@@ -236,7 +248,19 @@ try:
                             except Exception:
                                 st.warning(f"Could not fetch comparison data for {comp_tick}")
                         
-                        st.line_chart(chart_df, use_container_width=True)
+                        # Melt dataframe for Altair multi-line chart
+                        df_chart = chart_df.reset_index()
+                        time_col = 'Datetime' if 'Datetime' in df_chart.columns else 'Date'
+                        df_melted = df_chart.melt(id_vars=[time_col], var_name='Ticker', value_name='Return (%)')
+                        
+                        chart = alt.Chart(df_melted).mark_line().encode(
+                            x=alt.X(f'{time_col}:T', title=""),
+                            y=alt.Y('Return (%):Q', title="Return (%)", scale=alt.Scale(zero=False)),
+                            color='Ticker:N',
+                            tooltip=[alt.Tooltip(f'{time_col}:T', format="%Y-%m-%d %H:%M"), 'Ticker:N', alt.Tooltip('Return (%):Q', format=".2f")]
+                        ).interactive()
+                        
+                        st.altair_chart(chart, use_container_width=True)
                     
                     # --- PREDICTION MODEL ---
                     st.markdown("### 🔮 Near Future Prediction Model")
