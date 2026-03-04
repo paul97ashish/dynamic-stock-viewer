@@ -71,11 +71,8 @@ try:
         @st.cache_data(ttl=timedelta(days=7))
         def fetch_tickers():
             try:
-                # The Nasdaq Traded list contains ALL symbols traded in the US, including ETFs like SOXL
-                url = "ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqtraded.txt"
-                df = pd.read_csv(url, sep="|")
-                # Filter out test issues and the file footer
-                df = df[df['Test Issue'] == 'N']
+                # Read from bundled static CSV to prevent cloud firewalls from blocking FTP startup requests
+                df = pd.read_csv("tickers.csv")
                 tickers = df['Symbol'].dropna().astype(str).tolist()
                 return sorted(list(set(tickers)))
             except Exception:
