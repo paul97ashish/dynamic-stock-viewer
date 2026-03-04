@@ -1,4 +1,4 @@
 pandas
-streamlit
+streamlit>=1.40.0
 vaderSentiment
-yfinance==0.2.52
+yfinance
