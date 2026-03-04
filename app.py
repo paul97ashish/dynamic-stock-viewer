@@ -173,8 +173,8 @@ try:
 
     # Streamlit-native caching for history to prevent rate limiting
     @st.cache_data(ttl=timedelta(minutes=15))
-    def get_cached_history(ticker_sym, start, end):
-        return yf.Ticker(ticker_sym).history(start=start, end=end)
+    def get_cached_history(ticker_sym, start, end, interval="1d"):
+        return yf.Ticker(ticker_sym).history(start=start, end=end, interval=interval)
         
     @st.cache_data(ttl=timedelta(minutes=15))
     def get_cached_info(ticker_sym):
@@ -185,10 +185,23 @@ try:
         return yf.Ticker(ticker_sym).news
 
     if ticker:
+        # Determine optimal interval for the selected date range
+        date_diff = (end_date_input - start_date_input).days
+        days_from_today = (datetime.today().date() - start_date_input).days
+
+        interval = "1d"
+        # yfinance limits intraday data: <60d for 5m/15m, <730d for 1h
+        if date_diff <= 3 and days_from_today < 60:
+            interval = "5m"
+        elif date_diff <= 14 and days_from_today < 60:
+            interval = "15m"
+        elif date_diff <= 60 and days_from_today < 730:
+            interval = "1h"
+
         try:
             with st.spinner(f"Fetching data for {ticker}..."):
                 # Get historical data via Streamlit Cache
-                hist_data = get_cached_history(ticker, start_date_input, end_date_input)
+                hist_data = get_cached_history(ticker, start_date_input, end_date_input, interval)
                 
                 if not hist_data.empty:
                     # Get company info if available (Cached)
@@ -205,11 +218,11 @@ try:
                     
                     # Display Chart
                     if not compare_tickers:
-                        st.markdown("### Closing Price History")
+                        st.markdown(f"### Closing Price History ({interval.upper()} Interval)")
                         # Streamlit's native line chart is clean and responsive
                         st.line_chart(hist_data['Close'], use_container_width=True)
                     else:
-                        st.markdown("### Comparison Price History (% Change)")
+                        st.markdown(f"### Comparison Price History (% Change, {interval.upper()} Interval)")
                         # Build a combined dataframe normalized to standard percentage return
                         chart_df = pd.DataFrame()
                         chart_df[ticker] = (hist_data['Close'] / hist_data['Close'].iloc[0] - 1) * 100
@@ -217,7 +230,7 @@ try:
                         for comp_tick in compare_tickers:
                             try:
                                 # Use cached history pull for comparisons too
-                                c_data = get_cached_history(comp_tick, start_date_input, end_date_input)
+                                c_data = get_cached_history(comp_tick, start_date_input, end_date_input, interval)
                                 if not c_data.empty:
                                     chart_df[comp_tick] = (c_data['Close'] / c_data['Close'].iloc[0] - 1) * 100
                             except Exception:
