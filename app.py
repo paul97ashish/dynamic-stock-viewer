@@ -230,7 +230,7 @@ try:
                             x=alt.X(f'{time_col}:T', title=""),
                             y=alt.Y('Close:Q', title="Price", scale=alt.Scale(zero=False)),
                             tooltip=[alt.Tooltip(f'{time_col}:T', format="%Y-%m-%d %H:%M"), alt.Tooltip('Close:Q', format=".2f")]
-                        ).interactive()
+                        ).interactive(bind_y=False)
                         
                         st.altair_chart(chart, use_container_width=True)
                     else:
@@ -258,7 +258,7 @@ try:
                             y=alt.Y('Return (%):Q', title="Return (%)", scale=alt.Scale(zero=False)),
                             color='Ticker:N',
                             tooltip=[alt.Tooltip(f'{time_col}:T', format="%Y-%m-%d %H:%M"), 'Ticker:N', alt.Tooltip('Return (%):Q', format=".2f")]
-                        ).interactive()
+                        ).interactive(bind_y=False)
                         
                         st.altair_chart(chart, use_container_width=True)
                     
