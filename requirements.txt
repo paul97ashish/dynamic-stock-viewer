@@ -1,4 +1,4 @@
 pandas
 streamlit
 vaderSentiment
-yfinance
+yfinance==0.2.52
